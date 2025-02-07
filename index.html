@@ -1,0 +1,202 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>KAAYU POS TESTING</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="js/umd/receipt-printer-encoder.umd.js"></script>
+    <script src="js/umd/webusb-receipt-printer.umd.js"></script>
+    <script src='js/umd/receipt-printer-encoder.umd.js'></script>
+    <script>
+      /*
+            '----------------------------', '----------'],
+            .box(
+                  { width: 36, align: 'center', style: 'double', marginLeft: 4 }, 
+                  'Getting you ripped since 2010'
+              )
+
+              get$1(i) && localStorage.setItem("printer-driver", get$1(i)),
+        get$1(o) && localStorage.setItem("printer-baudrate", get$1(o)),
+        t.model && localStorage.setItem("printer-model", r())
+
+        Model: {"type":"usb","manufacturerName":"STMicroelectronics","productName":"POS80 Printer USB       ",
+        "serialNumber":"Printer","vendorId":1046,"productId":20497,"language":"esc-pos","codepageMapping":"zjiang"}
+
+        also stored in chrome://prefs-internals/
+      */
+     
+      const receiptPrinter = new WebUSBReceiptPrinter();
+      const encoder = new ReceiptPrinterEncoder();
+      let printerLanguage = 'esc-pos';
+      let printerCodepageMapping = 'generic';
+      let model = "Generic";
+
+      const itemsArray = [
+                            ['Annual Membership', '10,00'],
+                            ['Intro package', '15,00'],
+                            ['Drinks', '9,95'],
+                            ['Shirt', '4,75'],
+                            ['============================', '=========='],
+                            ['Total', '211,05'],
+                        ];
+
+
+
+      function printIt(){
+        /* Encode the receipt */
+
+        let encoder = new ReceiptPrinterEncoder({
+            language:  printerLanguage,
+            feedBeforeCut: 5,
+            openCashDrawer: false,
+            columns: 48
+        });
+        // RECEIPT PARAMS FROM SYSTEM
+        const qrcode = 'https://rippedcitygym.com';
+        const businessName = 'ME RIPPED FITNESS CENTER';
+        const address = 'LITE PORT, TAB. CITY, BOHOL';
+        const tin = '008-000-000-00';
+        // space between the business name and the address
+
+        const invoiceId = '123456';
+
+        let t = '3130613'; // temp barcode without check digit
+
+        const paddedBarcode = padLeftWithZeros(t, 12);
+        const checkDigit = checkDigitEAN13(paddedBarcode);
+        const calculatedCheckSum = paddedBarcode + checkDigit;// required for the Vozy printer
+        const date = '2021-09-01';
+        const time = '12:00:00';
+        const cashier = 'Abegail';
+
+        // tax / vat information
+        const vatable = '200,00';
+        const vat = '11,00';
+        const nonVatable = '0,00';
+        const total = '211,00';
+        const paymentMethod = '-Cash-';
+
+        //footer information
+        const receiptFooter = 'This invoice/receipt shall be valid for 5 years from the date of issuance.'
+        const footer = 'Thank you... Come again!';
+
+        let data = encoder
+              .initialize()
+              .align('center')
+              .line(businessName)
+              .align('center')
+              .line(address)
+              .align('center')
+              .line('TIN: ' + tin)
+              .newline(2)
+              .align('center')
+              .barcode(calculatedCheckSum, 'ean13')
+              .table(
+                        [
+                            { width: 19, marginLeft: 0, align: 'left' },
+                            { width: 19, marginRight: 0, align: 'right' }
+                        ], 
+                        [
+                          ['Invoice Number:', invoiceId],
+                          ['Date:', date],
+                          ['Time:', time],
+                          ['Cashier:', cashier],
+                        ],
+              )
+              .table(
+                      [
+                          { width: 28, marginLeft: 4, align: 'left' },
+                          { width: 10, marginRight: 4, align: 'right' }
+                      ], 
+                      [
+                        ['----------------------------', '----------'],
+                      ],
+                    )
+              .table(
+                      [
+                          { width: 28, marginLeft: 4, align: 'left' },
+                          { width: 10, marginRight: 4, align: 'right' }
+                      ],
+                      itemsArray,
+                    )
+              .newline(2)      
+              .table(
+                      [
+                          { width: 28, marginLeft: 4, align: 'left' },
+                          { width: 10, marginRight: 4, align: 'right' }
+                      ], 
+                      [
+                        ['VATable:', vatable],
+                        ['VAT Zero Rated:', '0'],
+                        ['VAT 12%:', vat],
+                        ['VAT Exempt:', nonVatable],
+                        ['AMT Due:', total],
+                      ],
+              )
+              .newline(2)
+              .align('center')
+              .line('Payment Method: ' + paymentMethod)
+              .line('This servers as your Official Receipt')
+              .text(receiptFooter)
+              .line(footer)
+              .cut()
+              .encode();
+
+        /* Print the receipt */
+
+        receiptPrinter.print(data);
+      }
+
+      function handleConnectButtonClick() {
+          receiptPrinter.connect();
+      }
+
+      receiptPrinter.addEventListener('connected', device => {
+          console.log(`Connected to ${device.manufacturerName} ${device.productName} (#${device.serialNumber})`);
+          model = device.productName;
+          printerLanguage = device.language;
+          /* Store device for reconnecting */
+          lastUsedDevice = device;
+      });
+
+
+      async function getDevices() {
+              const devices = await navigator.usb.getDevices();
+              devices.forEach((device) => {
+                console.log(`Name: ${device.productName}, Serial: ${device.serialNumber}`);
+              });
+              return devices;
+            }
+
+
+      /**
+         * Generates a check digit from a partial EAN13.
+         * 
+         * https://www.gs1.org/services/how-calculate-check-digit-manually
+         * 
+         * @param {string} barcode - 12 digit EAN13 barcode without the check digit
+         */
+        function checkDigitEAN13(barcode) {
+          const sum = barcode.split('')
+            .map((n, i) => n * (i % 2 ? 3 : 1)) // alternate between multiplying with 3 and 1
+            .reduce((sum, n) => sum + n, 0) // sum all values
+
+          const roundedUp = Math.ceil(sum / 10) * 10; // round sum to nearest 10
+          const checkDigit = roundedUp - sum; // subtract round to sum = check digit
+          
+          return checkDigit;
+        }
+
+        function padLeftWithZeros(number, length) {
+            return number.toString().padStart(length, '0');
+        }
+    </script>
+  </head>
+  
+  <body id="app"> this is a nothing section
+
+    <button onclick="handleConnectButtonClick()">Connect</button>
+    <button onclick="printIt()">Print</button> 
+  </body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ein test</title>
+    <script>
+        // this worked
+        function checkDigitEAN13(barcode) {
+          const sum = barcode.split('')
+            .map((n, i) => n * (i % 2 ? 3 : 1)) // alternate between multiplying with 3 and 1
+            .reduce((sum, n) => sum + n, 0) // sum all values
+
+          const roundedUp = Math.ceil(sum / 10) * 10; // round sum to nearest 10
+          const checkDigit = roundedUp - sum; // subtract round to sum = check digit
+
+          return checkDigit;
+        }
+
+        function padLeftWithZeros(number, length) {
+            return number.toString().padStart(length, '0');
+        }
+
+    </script>
+</head>
+<body>
+  <script>
+
+
+    const barcode = '123456789';
+    const paddedBarcode = padLeftWithZeros(barcode, 12);
+    const completeNumber = paddedBarcode + checkDigitEAN13(paddedBarcode);
+    document.write(`Padded barcode: ${completeNumber}`);
+</script>
+</body>
+</html>

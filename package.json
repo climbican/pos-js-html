@@ -1,0 +1,20 @@
+{
+  "name": "pos-node",
+  "version": "1.0.0",
+  "description": "testing",
+  "keywords": [
+    "crap"
+  ],
+  "license": "ISC",
+  "author": "mickey",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@point-of-sale/receipt-printer-encoder": "^3.0.2",
+    "@point-of-sale/receipt-printer-status": "^2.0.0",
+    "@point-of-sale/webusb-receipt-printer": "^2.0.0"
+  }
+}
