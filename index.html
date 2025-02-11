@@ -9,6 +9,10 @@
     <script src="js/umd/webusb-receipt-printer.umd.js"></script>
     <script src='js/umd/receipt-printer-encoder.umd.js'></script>
     <script>
+      if (!('usb' in navigator)) {
+        console.log('WebUSB API is not supported!');
+      }
+
       /*
             '----------------------------', '----------'],
             .box(
@@ -25,6 +29,8 @@
 
         also stored in chrome://prefs-internals/
       */
+
+      const printer = {"type":"usb","manufacturerName":"STMicroelectronics","productName":"POS80 Printer USB       ","serialNumber":"Printer","vendorId":1046,"productId":20497,"language":"esc-pos","codepageMapping":"zjiang"}
      
       const receiptPrinter = new WebUSBReceiptPrinter();
       const encoder = new ReceiptPrinterEncoder();
@@ -156,11 +162,15 @@
           console.log(`Connected to ${device.manufacturerName} ${device.productName} (#${device.serialNumber})`);
           model = device.productName;
           printerLanguage = device.language;
+
+          console.log('device info ' + JSON.stringify(device));
           /* Store device for reconnecting */
-          lastUsedDevice = device;
+          localStorage.setItem('lastUsedDevice', JSON.stringify(device));
       });
 
-
+      /**
+       * Get the connected devices.
+       */
       async function getDevices() {
               const devices = await navigator.usb.getDevices();
               devices.forEach((device) => {
@@ -168,6 +178,20 @@
               });
               return devices;
             }
+
+      function checkPreviousConnection() {
+        const lastUsedDevice = localStorage.getItem('lastUsedDevice');
+        if (lastUsedDevice) {
+          console.log('Reconnecting to last used device...');
+          const lastUsedDevice = JSON.parse(localStorage.getItem('lastUsedDevice'));
+
+          receiptPrinter.reconnect(lastUsedDevice);
+        }
+        else {
+          console.log('No previous connection found.');
+          document.getElementById('connectButton').style.display = 'block';
+        }
+      }
 
 
       /**
@@ -192,11 +216,49 @@
             return number.toString().padStart(length, '0');
         }
     </script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f0f0f0;
+      }
+
+      button {
+        margin:5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+
+      button:active {
+        background-color: #0056b3;
+      }
+      #connectButton{
+        display:none;
+      }
+    </style>
   </head>
   
-  <body id="app"> this is a nothing section
+  <body id="app"> 
+    
+    <div>Testing the connect and print functions</div>
 
-    <button onclick="handleConnectButtonClick()">Connect</button>
-    <button onclick="printIt()">Print</button> 
+    <button onclick="handleConnectButtonClick()" id="connectButton">Connect</button>
+    <button onclick="printIt()" style="margin-left:10px;">Print</button> 
+
+    <script>
+      document.addEventListener('DOMContentLoaded', (event) => {
+        checkPreviousConnection();
+      });
+    </script>
   </body>
 </html>
